@@ -1,16 +1,18 @@
+
 /**
  * Represents a socket payload from client to server or server to client.
  */
-export interface ISocketPayload <GType = string, GData = any> {
+export interface ISocketPayload <GType extends string = string, GData = any> {
 	// app id
   a ?: number
-	// payload type
+	// type
   t ?: GType
-	// payload uid
+	// uid ( for answers )
   u ?: string
-	// payload data
+	// data
   d ?: GData
 }
 
+// export type * from "./types.js"
 export * from "./random.js"
 export * from "./emitter.js"

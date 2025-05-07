@@ -1,51 +1,59 @@
 {
-  "name": "@zouloux/shared-entities",
-  "version": "0.1.1",
-  "type": "module",
-  "author": "Alexis Bouhet",
-  "license": "MIT",
-  "exports": {
-    "./client": {
-      "types": "./dist/client/index.client.d.ts",
-      "default": "./dist/client/index.client.js"
-    },
-    "./common": {
-      "types": "./dist/common/index.common.d.ts",
-      "default": "./dist/common/index.common.js"
-    },
-    "./react": {
-      "types": "./dist/react/index.react.d.ts",
-      "default": "./dist/react/index.react.js"
-    }
-  },
-  "tsp": {
-    "runtime": "node",
-    "src": "./src",
-    "dist": "./dist",
-    "tests": "./tests",
-    "test-files": [],
-    "tmp": "./tmp",
-    "reports": "./reports",
-    "generate-json-report": false,
-    "generate-svg-report": false
-  },
-  "scripts": {
-    "build": "tsp build",
-    "test": "tsp build --noSizeReport && tsp test --noIntro",
-    "publish": "tsp build && tsp test --noIntro && tsp publish --noIntro"
-  },
-  "dependencies": {
-    "@reflex-stack/tsp": "0.1.11",
-    "@zouloux/signal": "^0.3.0",
-    "terser": "^5.39.0",
-    "typescript": "^5.8.3"
-  },
-  "peerDependencies": {
-    "react": "^19.1.0",
-    "@types/react": "^19.1.0"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git@github.com:zouloux/shared-entites.git"
-  }
+	"name": "@zouloux/shared-entities",
+	"version": "0.1.1",
+	"type": "module",
+	"author": "Alexis Bouhet",
+	"license": "MIT",
+	"exports": {
+		"./client": {
+			"types": "./dist/client/index.client.d.ts",
+			"default": "./dist/client/index.client.js"
+		},
+		"./common": {
+			"types": "./dist/common/index.common.d.ts",
+			"default": "./dist/common/index.common.js"
+		},
+		"./react": {
+			"types": "./dist/react/index.react.d.ts",
+			"default": "./dist/react/index.react.js"
+		},
+		"./server": {
+			"types": "./dist/server/index.server.d.ts",
+			"default": "./dist/server/index.server.js"
+		}
+	},
+	"tsp": {
+		"runtime": "node",
+		"src": "./src",
+		"dist": "./dist",
+		"tests": "./tests",
+		"test-files": [
+			"test.js"
+		],
+		"tmp": "./tmp",
+		"reports": "./reports",
+		"generate-json-report": false,
+		"generate-svg-report": false
+	},
+	"scripts": {
+		"build": "tsp build",
+		"test": "tsp build --noSizeReport && tsp test --noIntro",
+		"publish": "tsp build && tsp test --noIntro && tsp publish --noIntro"
+	},
+	"devDependencies": {
+		"@types/react": "^19.1.0",
+		"@types/ws": "^8.18.1",
+		"@reflex-stack/tsp": "0.1.11",
+		"terser": "^5.39.0",
+		"typescript": "^5.8.3"
+	},
+	"peerDependencies": {
+		"react": "^19.1.0",
+		"fastify": "^5.3.2",
+		"ws": "^8.18.2"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git@github.com:zouloux/shared-entites.git"
+	}
 }

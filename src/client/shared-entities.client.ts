@@ -2,6 +2,8 @@ import { Emitter } from "../common/emitter.js";
 import { TClientSocket } from "./socket.client.js";
 import { ISocketPayload } from "../common/index.common.js";
 
+// TODO : LOGS
+
 type TSharedEntityTypes = (
   | '@SO' /*shared-object*/
   | '@SL' /*shared-list*/
@@ -47,52 +49,53 @@ export function createClientSharedEntities ( socket:TClientSocket ) {
   ]>()
 
   function payloadHandler (payload: TSharedEntityPayload) {
-    const { type, app, data } = payload as any
-    if (type !== '@SO' /*shared-object*/ && type !== '@SL' /*shared-list*/)
+    //const { type, app, data } = payload
+    const { a: appId/* app id */, t/* type */, d /* data */ } = payload
+    if (t !== '@SO' /*shared-object*/ && t !== '@SL' /*shared-list*/)
       return
-    const { a /*action*/, k /*key*/, v /*value*/, n /*name*/, p /*parent*/ } = data
+    const { a /*action*/, k /*key*/, v /*value*/, n /*name*/, p /*parent*/ } = d
     // --- CREATE SHARED ENTITY
     if (a === 'C' /*create*/) {
       // Create app holder
-      if (!_sharedEntitiesByApp.has(app)) _sharedEntitiesByApp.set(app, new Map())
+      if (!_sharedEntitiesByApp.has(appId)) _sharedEntitiesByApp.set(appId, new Map())
       // Create entity in app
-      const appEntities = _sharedEntitiesByApp.get(app) as any
-      appEntities.set(k, data.v)
+      const appEntities = _sharedEntitiesByApp.get(appId) as any
+      appEntities.set(k, d.v)
       // Dispatch
-      onUpdated.dispatch(app, k, 'C' /*create*/)
-      if (p) onUpdated.dispatch(app, p, 'C' /*create*/)
+      onUpdated.dispatch(appId, k, 'C' /*create*/)
+      if (p) onUpdated.dispatch(appId, p, 'C' /*create*/)
     }
     // --- DESTROY SHARED ENTITY
     else if (a === 'D' /*destroy*/) {
       // Remove entity from app
-      if (!_sharedEntitiesByApp.has(app))
+      if (!_sharedEntitiesByApp.has(appId))
         return
-      const appEntities = _sharedEntitiesByApp.get(app)
+      const appEntities = _sharedEntitiesByApp.get(appId)
       if (!appEntities)
         return
       appEntities.delete(k)
       // Dispatch
-      onUpdated.dispatch(app, k, 'D' /*destroy*/)
+      onUpdated.dispatch(appId, k, 'D' /*destroy*/)
     }
     // --- MUTATE SHARED ENTITY
     else {
       // Target shared entity in this app
-      const appEntities = _sharedEntitiesByApp.get(app)
+      const appEntities = _sharedEntitiesByApp.get(appId)
       if (!appEntities)
         return
       const entity = appEntities.get(k)
       if (!entity) {
-        console.error(`sharedEntities // payload // invalid entity not found ${k} - ${app}`)
+        console.error(`sharedEntities // payload // invalid entity not found ${k} - ${appId}`)
         return
       }
-      if (type === '@SO' /*shared-object*/) {
+      if (t === '@SO' /*shared-object*/) {
         if (a === 'M' /*mutate*/)
           entity[n] = v
         else if (a === 'R' /*remove*/)
           delete entity[n]
         else
           return
-      } else if (type === '@SL' /*shared-list*/) {
+      } else if (t === '@SL' /*shared-list*/) {
         if (a === 'A' /*add*/)
           entity.push(v)
         else if (a === 'R' /*remove*/)
@@ -103,9 +106,9 @@ export function createClientSharedEntities ( socket:TClientSocket ) {
         return
       }
       // Dispatch change
-      onUpdated.dispatch(app, k, 'M' /*mutate*/)
+      onUpdated.dispatch(appId, k, 'M' /*mutate*/)
       // console.log("->", app, k, entity)
-      if (p) onUpdated.dispatch(app, p, 'M' /*mutate*/)
+      if (p) onUpdated.dispatch(appId, p, 'M' /*mutate*/)
     }
   }
 

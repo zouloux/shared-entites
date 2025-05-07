@@ -5,24 +5,25 @@ import { ISocketPayload } from "../common/index.common.js";
 
 interface TOptions {
   endpoint          : string
-  logsLevel         ?:TLogsLevel
+  logLevel          ?:TLogLevel
   reconnectTimeout  ?:number
   payloadTimeout    ?:number
+  webSocketClass    ?:any
 }
 
-type TLogsLevel = 0 | 1 | 2
+export type TLogLevel = 0 | 1 | 2
 
 export type TClientSocket = ReturnType<typeof createClientSocket>
 
 export function createClientSocket (options:TOptions) {
   // Extract options
-  let { endpoint, reconnectTimeout, payloadTimeout, logsLevel } = options
+  let { endpoint, reconnectTimeout, payloadTimeout, logLevel, webSocketClass } = options
   // Check endpoint
   if ( !endpoint.startsWith("ws://") && !endpoint.startsWith("wss://") ) {
-    throw new Error('Invalid endpoint')
+    throw new Error('Invalid endpoint scheme')
   }
-  // Logs level
-  logsLevel ||= 0
+  // Log level
+  logLevel ||= 0
   // Socket state
   let _webSocket: WebSocket | null
   let _isConnected = false
@@ -32,23 +33,23 @@ export function createClientSocket (options:TOptions) {
   let _allowReconnexions = true
   // Waiting payload returns
   payloadTimeout ||= 10 * 1000 // 10 seconds
-  const _waitingPayloadReturns: any[] = []
+  const _waitingPayloadReturns = new Map<string, (payload:ISocketPayload) => void>()
 
   // --------------------------------------------------------------------------- PUBLIC API
   const api = {
     /**
-     * Set logs level.
+     * Set log level.
      * 0: No logs
      * 1: Payload logs
      * 2: Verbose with raw logs
      * @param level
      */
-    set logsLevel (level:TLogsLevel) {
+    set logLevel (level:TLogLevel) {
       if ( level < 0 || level > 2 )
-        throw new Error('Invalid logs level')
-      logsLevel = level
+        throw new Error('Invalid log level')
+      logLevel = level
     },
-    get logsLevel ():TLogsLevel { return logsLevel },
+    get logLevel ():TLogLevel { return logLevel },
 
     /**
      * Get connected status
@@ -69,16 +70,17 @@ export function createClientSocket (options:TOptions) {
 
     connect ():boolean {
       // Already connected or exited
-      if (_isConnected || !_allowReconnexions)
+      if (_isConnected)
         return false
+      _allowReconnexions = true
       // Remove reconnect timeout
       clearTimeout(_reconnectionTimeout)
       _reconnectionTimeout = null
       // Compute socket endpoint from protocol and party code
-      _webSocket = new WebSocket(endpoint)
+      _webSocket = webSocketClass ? new webSocketClass(endpoint) : new WebSocket(endpoint)
       // We are connected
       _webSocket.addEventListener('open', () => {
-        if ( logsLevel >= 1 )
+        if ( logLevel >= 1 )
           console.log('WS :: open')
         _isConnected = true
         api.onConnectionUpdated.dispatch(_isConnected)
@@ -86,57 +88,62 @@ export function createClientSocket (options:TOptions) {
       // We receive a payload from server
       _webSocket.addEventListener('message', (event) => {
         if (typeof event.type !== 'string') {
-          if ( logsLevel >= 1 )
+          if ( logLevel >= 1 )
             console.error('WS :: Invalid message type', event)
           return
         }
         // This is a ping
-        if (event.data.startsWith('@')) {
-          if ( logsLevel >= 2 )
-            console.log(`WS -> ${event.data}`)
+        if (event.data.startsWith('@PING')) {
+          if ( logLevel >= 2 )
+            console.log(`WS :: ${event.data}`)
           return
         }
         // Parse it as json
-        if ( logsLevel >= 2 )
-          console.log('WS <-', event.data)
         let parsedPayload
         try {
           parsedPayload = JSON.parse(event.data)
         } catch (error) {
-          if ( logsLevel >= 1 )
+          if ( logLevel >= 1 )
             console.error('WS :: Invalid payload', error, event)
         }
-        if ( logsLevel >= 1 )
-          console.log('WS :: onPayload', parsedPayload)
+        const { a, t, u } = parsedPayload
+        if ( logLevel >= 1 )
+          console.log('WS :: onPayload', a, t)
+        if ( logLevel >= 2 )
+          console.log('WS <-', event.data)
+        // Close connection from server
+        if ( parsedPayload.t === '@CLOSE' ) {
+          api.disconnect()
+          return
+        }
         // Check if it's a return
-        const { uid } = parsedPayload
-        if ( uid && uid in _waitingPayloadReturns ) {
-          _waitingPayloadReturns[uid](parsedPayload)
+        if ( u && _waitingPayloadReturns.has(u) ) {
+          _waitingPayloadReturns.get(u)(parsedPayload)
           return
         }
         // Not a return but a server payload
         api.onPayload.dispatch(parsedPayload)
-        // todo : move it somewhere else
-        // if (parsedPayload.type === 'exit') {
-        //   _allowReconnexions = false
-        //   api.disconnect()
-        // }
       })
       // An error occurred on the socket
       _webSocket.addEventListener('error', (event) => {
-        if ( logsLevel >= 1)
+        if ( logLevel >= 1 )
           console.error('WS :: error', event)
         // fixme : shall we disconnect here ?
-        api.disconnect()
+        // api.disconnect()
       })
       // The connexion has been lost
       _webSocket.addEventListener('close', (event) => {
-        if ( logsLevel >= 1 )
-          console.log('WS :: close', event)
+        if ( logLevel >= 1 )
+          console.log('WS :: close')
+        // if ( logLevel >= 2 )
+        //   console.log( event );
         // fixme : shall we disconnect here ?
-        api.disconnect()
+        // api.disconnect()
         // Reconnect in a loop
-        _reconnectionTimeout = setTimeout( () => api.connect(), reconnectTimeout )
+        _reconnectionTimeout = setTimeout( () => {
+          if ( _allowReconnexions )
+            api.connect()
+        }, reconnectTimeout )
       })
       return true
     },
@@ -147,6 +154,7 @@ export function createClientSocket (options:TOptions) {
       // Already disconnected
       if (!_webSocket)
         return
+      _allowReconnexions = false
       // Kill socket
       _webSocket.close()
       _webSocket = null
@@ -159,59 +167,55 @@ export function createClientSocket (options:TOptions) {
 
     // ------------------------------------------------------------------------- SEND PAYLOAD
 
-    sendPayload (app: number, type: string, data?: any) {
+    sendPayload (a:number /* app id */, t:string /* type */, d:any /* data */ = null) {
       // Not connected
       if (!_isConnected || !_webSocket)
         return
       // Send the payload as JSON
-      const payload = { type, data, app }
-      if ( logsLevel >= 1 )
-        console.log('WS :: sendPayload', payload, _waitingPayloadReturns.length)
+      const payload:ISocketPayload = { a, t, d }
+      if ( logLevel >= 1 )
+        console.log('WS :: sendPayload', a, t)
       const rawPayload = JSON.stringify(payload)
-      if ( logsLevel >= 2 )
+      if ( logLevel >= 2 )
         console.log('WS ->', rawPayload)
       _webSocket.send(rawPayload)
     },
 
-    sendPayloadWithReturn<GAnswer, GType = string>(
-      app: number,
-      type: GType,
-      data?: any
+    sendPayloadWithReturn<GAnswer, GType extends string = string>(
+      a: number /* app id */,
+      t: GType /* type */,
+      d:any /* data */ = null
     ): Promise<ISocketPayload<GType, GAnswer>> {
       return new Promise((resolve, reject) => {
         // Not connected
         if (!_isConnected || !_webSocket)
           return
         // Create a unique ID to identify the answer
-        const uid = generateSimpleUID()
+        const u = generateSimpleUID()
         // Send the payload as JSON
-        const payload = { type, data, app, uid }
-        if ( logsLevel >= 1 ) {
+        const payload:ISocketPayload = { a, t, d, u }
+        if ( logLevel >= 1 ) {
           console.log(
             'WS :: sendPayloadWithReturn',
-            payload,
-            _waitingPayloadReturns.length
+            a, t, u,
+            _waitingPayloadReturns.size
           )
         }
         const rawPayload = JSON.stringify(payload)
-        if ( logsLevel >= 2 )
+        if ( logLevel >= 2 )
           console.log('WS ->', rawPayload)
         _webSocket.send(rawPayload)
         // Create a timeout for the response to avoid infinitely pending promises
         const timeout = setTimeout(() => {
-          if ( logsLevel >= 1 ) {
-            console.error(
-              `WS :: sendPayloadWithReturn // timeout app "${app}" and type "${type}"`,
-              data
-            )
-          }
+          if ( logLevel >= 1 )
+            console.error('WS :: timeout', a, t, d)
           reject()
         }, payloadTimeout)
         // Register this uid as waiting for an answer
-        _waitingPayloadReturns[uid as any] = (answerData: GAnswer) => {
+        _waitingPayloadReturns.set(u, (answerData: GAnswer) => {
           clearTimeout(timeout)
           resolve(answerData as any)
-        }
+        })
       })
     },
   }
