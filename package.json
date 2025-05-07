@@ -1,6 +1,6 @@
 {
   "name": "@zouloux/shared-entities",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "author": "Alexis Bouhet",
   "license": "MIT",
@@ -23,9 +23,7 @@
     "src": "./src",
     "dist": "./dist",
     "tests": "./tests",
-    "test-files": [
-      "test.js"
-    ],
+    "test-files": [],
     "tmp": "./tmp",
     "reports": "./reports",
     "generate-json-report": false,
@@ -42,7 +40,7 @@
     "terser": "^5.39.0",
     "typescript": "^5.8.3"
   },
-  "peerDependencies" : {
+  "peerDependencies": {
     "react": "^19.1.0",
     "@types/react": "^19.1.0"
   },
