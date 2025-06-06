@@ -29,7 +29,7 @@ type TOptions <
 	server									: FastifyInstance
 	logLevel          			?:TLogLevel
 	pingInterval						?:number
-	getLobbyFromRequest			: (request:FastifyRequest) => GLobby
+	getLobbyFromRequest			: (request:FastifyRequest) => Promise<GLobby>
 	createHandleFromRequest	?:(request:FastifyRequest) => Promise<Omit<GHandle, "ws">|null>
 	webSocketServerOptions	?:typeof WebSocketServer.prototype.options
 }
@@ -120,7 +120,7 @@ export function createServerSocket <
 		//
 		try {
 			// Create lobby from request
-			const lobby = getLobbyFromRequest( request )
+			const lobby = await getLobbyFromRequest( request )
 			// Invalid lobby
 			if ( !lobby ) {
 				socket.destroy()

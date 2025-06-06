@@ -48,7 +48,7 @@ server.listen({ host: '0.0.0.0', port })
 const serverSocket = createServerSocket({
 	server,
 	pingInterval: 500,
-	getLobbyFromRequest (request) {
+	async getLobbyFromRequest (request) {
 		const { url } = request
 		// Trying to do a websocket request on the wrong endpoint
 		if ( !url.startsWith('/ws/') )
@@ -65,7 +65,7 @@ const serverSocket = createServerSocket({
 			test: true, // fixme : test for generics
 		}
 	},
-	createHandleFromRequest (request) {
+	async createHandleFromRequest (request) {
 		return {
 			// Create new id
 			id: handleId++,
