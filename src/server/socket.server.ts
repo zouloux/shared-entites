@@ -34,7 +34,10 @@ type TOptions <
 	webSocketServerOptions	?:typeof WebSocketServer.prototype.options
 }
 
-export type TServerSocket = ReturnType<typeof createServerSocket>
+export type TServerSocket<
+  GHandle extends TServerSocketHandle = TServerSocketHandle,
+  GLobby extends TServerSocketLobby<GHandle> = TServerSocketLobby<GHandle>
+> = ReturnType<typeof createServerSocket<GHandle, GLobby>>;
 
 export function createServerSocket <
 	GHandle extends TServerSocketHandle = TServerSocketHandle,
@@ -156,7 +159,7 @@ export function createServerSocket <
 		getLobby ( key:string ):GLobby|null {
 			return _lobbies.get( key )
 		},
-		openLobby ( key:string, lobbyObject?:Partial<GLobby> ):GLobby|null {
+		openLobby ( key:string, lobbyObject?:Omit<GLobby, "handles"|"sharedEntities"> ):GLobby|null {
 			let lobby = _lobbies.get( key )
 			if ( lobby )
 				return null
