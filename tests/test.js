@@ -73,8 +73,6 @@ const serverSocket = createServerSocket({
 	}
 })
 
-const h = handle => ({...handle, ws: null})
-
 // Create some lobbies
 const mainLobbyKey = "1234"
 const mainLobby = serverSocket.openLobby(mainLobbyKey)

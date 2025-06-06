@@ -118,6 +118,11 @@ export function createServerSocket <
     })
 	}
 
+	function refuseSocket (socket:stream.Duplex) {
+		socket.write('HTTP/1.1 400 Bad Request\r\n\r\n');
+		socket.destroy();
+	}
+
 	// We received a WebSocket connection request
 	async function serverUpgradeHandler ( request:FastifyRequest, socket:stream.Duplex, head:Buffer ) {
 		//
@@ -125,17 +130,13 @@ export function createServerSocket <
 			// Create lobby from request
 			const lobby = await getLobbyFromRequest( request )
 			// Invalid lobby
-			if ( !lobby ) {
-				socket.destroy()
-				return
-			}
+			if ( !lobby )
+				return refuseSocket( socket )
 			// Create handle from request
 			const handle = createHandleFromRequest ? await createHandleFromRequest( request ) : {}
 			// Invalid handle
-			if ( !handle ) {
-				socket.destroy()
-				return
-			}
+			if ( !handle )
+				return refuseSocket( socket )
 			// Allow proto upgrade
 			_socketServer.handleUpgrade(request as any, socket, head, (ws:IWSLike) => {
 				// Notify server socket and register all data
@@ -143,8 +144,11 @@ export function createServerSocket <
 			})
 		}
 		catch ( error ) {
-			console.error( error )
-			socket.destroy()
+			if ( options.logLevel > 0 ) {
+				console.log("Error while upgrading socket")
+				console.error( error )
+			}
+			return refuseSocket( socket )
 		}
 	}
 
