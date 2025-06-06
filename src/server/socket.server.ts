@@ -156,15 +156,16 @@ export function createServerSocket <
 		getLobby ( key:string ):GLobby|null {
 			return _lobbies.get( key )
 		},
-		openLobby ( key:string ):GLobby|null {
+		openLobby ( key:string, lobbyObject?:Partial<GLobby> ):GLobby|null {
 			let lobby = _lobbies.get( key )
 			if ( lobby )
 				return null
 			lobby = {
 				handles: [],
 				sharedEntities: [],
+				...lobbyObject,
 			} as GLobby
-			_lobbies.set( key, lobby)
+			_lobbies.set( key, lobby )
 			return lobby
 		},
 		closeLobby ( key:string ):boolean {
