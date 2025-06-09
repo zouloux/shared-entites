@@ -85,6 +85,8 @@ export function createClientSharedEntities ( socket:TClientSocket ) {
       if (!appEntities)
         return
       const entity = appEntities.get(k)
+      // fixme : sometimes we have updates while syncing shared entities
+      //          server should check if in sync with client to send updates
       if (!entity) {
         console.error(`sharedEntities // payload // invalid entity not found ${k} - ${appId}`)
         return

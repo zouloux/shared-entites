@@ -146,6 +146,8 @@ export function createClientSocket (options:TOptions) {
             console.log('WS :: close')
           // if ( logLevel >= 2 )
           //   console.log( event );
+          let oldIsConnected = _isConnected;
+          _isConnected = false
           if ( !_hasPromised ) {
             _hasPromised = true
             reject()
@@ -154,13 +156,15 @@ export function createClientSocket (options:TOptions) {
           if ( _allowReconnexions && reconnectTimeout > 0 ) {
             _reconnectionTimeout = setTimeout( () => {
               if ( _allowReconnexions )
-                api.connect()
+                api.connect().catch( () => {} );
             }, reconnectTimeout )
-          } else {
-            let oldIsConnected = _isConnected
-            _isConnected = false
-            if ( oldIsConnected !== _isConnected )
-              api.onConnectionUpdated.dispatch(_isConnected)
+          }
+          // Signal connexion state
+          else if ( oldIsConnected !== _isConnected ) {
+            _allowReconnexions = false
+            _webSocket.close()
+            _webSocket = null
+            api.onConnectionUpdated.dispatch(_isConnected)
           }
         })
       })
