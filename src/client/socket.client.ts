@@ -148,7 +148,7 @@ export function createClientSocket (options:TOptions) {
           //   console.log( event );
           if ( !_hasPromised ) {
             _hasPromised = true
-            return reject()
+            reject()
           }
           // Reconnect in a loop
           if ( _allowReconnexions && reconnectTimeout > 0 ) {
@@ -157,8 +157,10 @@ export function createClientSocket (options:TOptions) {
                 api.connect()
             }, reconnectTimeout )
           } else {
+            let oldIsConnected = _isConnected
             _isConnected = false
-            api.onConnectionUpdated.dispatch(_isConnected)
+            if ( oldIsConnected !== _isConnected )
+              api.onConnectionUpdated.dispatch(_isConnected)
           }
         })
       })
