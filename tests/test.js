@@ -103,6 +103,8 @@ for ( let i = 0; i < 10; i++ ) {
 
 		// console.log( clientSocket );
 		clientSocket.connect()
+			.then(() => console.log("[client] connected"))
+			.catch(() => console.error("[client] cannot connect"))
 
 		const sharedEntities = createClientSharedEntities(clientSocket)
 

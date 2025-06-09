@@ -68,84 +68,94 @@ export function createClientSocket (options:TOptions) {
 
     // ------------------------------------------------------------------------- CONNECT
 
-    connect ():boolean {
-      // Already connected or exited
-      if (_isConnected)
-        return false
-      _allowReconnexions = true
-      // Remove reconnect timeout
-      clearTimeout(_reconnectionTimeout)
-      _reconnectionTimeout = null
-      // Compute socket endpoint from protocol and party code
-      _webSocket = webSocketClass ? new webSocketClass(endpoint) : new WebSocket(endpoint)
-      // We are connected
-      _webSocket.addEventListener('open', () => {
-        if ( logLevel >= 1 )
-          console.log('WS :: open')
-        _isConnected = true
-        api.onConnectionUpdated.dispatch(_isConnected)
-      })
-      // We receive a payload from server
-      _webSocket.addEventListener('message', (event) => {
-        if (typeof event.type !== 'string') {
+    async connect ():Promise<void> {
+      return new Promise((resolve, reject) => {
+        // Already connected or exited
+        if (_isConnected)
+          return reject()
+        let hasConnected = false
+        // Remove reconnect timeout
+        clearTimeout(_reconnectionTimeout)
+        _reconnectionTimeout = null
+        // Compute socket endpoint from protocol and party code
+        _webSocket = webSocketClass ? new webSocketClass(endpoint) : new WebSocket(endpoint)
+        // We are connected
+        _webSocket.addEventListener('open', () => {
           if ( logLevel >= 1 )
-            console.error('WS :: Invalid message type', event)
-          return
-        }
-        // This is a ping
-        if (event.data.startsWith('@PING')) {
+            console.log('WS :: open')
+          _allowReconnexions = true
+          hasConnected = true
+          _isConnected = true
+          api.onConnectionUpdated.dispatch(_isConnected)
+          resolve()
+        })
+        // We receive a payload from server
+        _webSocket.addEventListener('message', (event) => {
+          if (typeof event.type !== 'string') {
+            if ( logLevel >= 1 )
+              console.error('WS :: Invalid message type', event)
+            return
+          }
+          // This is a ping
+          if (event.data.startsWith('@PING')) {
+            if ( logLevel >= 2 )
+              console.log(`WS :: ${event.data}`)
+            return
+          }
+          // Parse it as json
+          let parsedPayload
+          try {
+            parsedPayload = JSON.parse(event.data)
+          } catch (error) {
+            if ( logLevel >= 1 )
+              console.error('WS :: Invalid payload', error, event)
+          }
+          const { a, t, u } = parsedPayload
+          if ( logLevel >= 1 )
+            console.log('WS :: onPayload', a, t)
           if ( logLevel >= 2 )
-            console.log(`WS :: ${event.data}`)
-          return
-        }
-        // Parse it as json
-        let parsedPayload
-        try {
-          parsedPayload = JSON.parse(event.data)
-        } catch (error) {
+            console.log('WS <-', event.data)
+          // Close connection from server
+          if ( parsedPayload.t === '@CLOSE' ) {
+            api.disconnect()
+            return
+          }
+          // Check if it's a return
+          if ( u && _waitingPayloadReturns.has(u) ) {
+            _waitingPayloadReturns.get(u)(parsedPayload)
+            return
+          }
+          // Not a return but a server payload
+          api.onPayload.dispatch(parsedPayload)
+        })
+        // An error occurred on the socket
+        _webSocket.addEventListener('error', (event) => {
           if ( logLevel >= 1 )
-            console.error('WS :: Invalid payload', error, event)
-        }
-        const { a, t, u } = parsedPayload
-        if ( logLevel >= 1 )
-          console.log('WS :: onPayload', a, t)
-        if ( logLevel >= 2 )
-          console.log('WS <-', event.data)
-        // Close connection from server
-        if ( parsedPayload.t === '@CLOSE' ) {
-          api.disconnect()
-          return
-        }
-        // Check if it's a return
-        if ( u && _waitingPayloadReturns.has(u) ) {
-          _waitingPayloadReturns.get(u)(parsedPayload)
-          return
-        }
-        // Not a return but a server payload
-        api.onPayload.dispatch(parsedPayload)
+            console.error('WS :: error', event)
+          // fixme : do we keep this ?
+          if ( !hasConnected )
+            return reject()
+        })
+        // The connexion has been lost
+        _webSocket.addEventListener('close', (event) => {
+          if ( logLevel >= 1 )
+            console.log('WS :: close')
+          // if ( logLevel >= 2 )
+          //   console.log( event );
+          if ( !hasConnected )
+            return reject()
+          // Reconnect in a loop
+          if ( _allowReconnexions && reconnectTimeout > 0 ) {
+            _reconnectionTimeout = setTimeout( () => {
+              if ( _allowReconnexions )
+                api.connect()
+            }, reconnectTimeout )
+          } else {
+            _isConnected = false
+            api.onConnectionUpdated.dispatch(_isConnected)
+          }
+        })
       })
-      // An error occurred on the socket
-      _webSocket.addEventListener('error', (event) => {
-        if ( logLevel >= 1 )
-          console.error('WS :: error', event)
-        // fixme : shall we disconnect here ?
-        // api.disconnect()
-      })
-      // The connexion has been lost
-      _webSocket.addEventListener('close', (event) => {
-        if ( logLevel >= 1 )
-          console.log('WS :: close')
-        // if ( logLevel >= 2 )
-        //   console.log( event );
-        // fixme : shall we disconnect here ?
-        // api.disconnect()
-        // Reconnect in a loop
-        _reconnectionTimeout = setTimeout( () => {
-          if ( _allowReconnexions )
-            api.connect()
-        }, reconnectTimeout )
-      })
-      return true
     },
 
     // ------------------------------------------------------------------------- DISCONNECT

@@ -119,8 +119,11 @@ export function createServerSocket <
 	}
 
 	function refuseSocket (socket:stream.Duplex) {
-		socket.write('HTTP/1.1 400 Bad Request\r\n\r\n');
-		socket.destroy();
+		// this prevent error in http syntax in node internals ( delay + send bad request )
+		setTimeout(() => {
+			socket.write('HTTP/1.1 400 Bad Request\r\n\r\n');
+			socket.destroy();
+		}, 100)
 	}
 
 	// We received a WebSocket connection request
