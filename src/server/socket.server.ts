@@ -30,7 +30,7 @@ type TOptions <
 	logLevel          			?:TLogLevel
 	pingInterval						?:number
 	getLobbyFromRequest			: (request:FastifyRequest) => Promise<GLobby>
-	createHandleFromRequest	?:(request:FastifyRequest) => Promise<Omit<GHandle, "ws">|null>
+	createHandleFromRequest	?:(request:FastifyRequest, lobby:GLobby) => Promise<Omit<GHandle, "ws">|null>
 	webSocketServerOptions	?:typeof WebSocketServer.prototype.options
 }
 
@@ -133,7 +133,7 @@ export function createServerSocket <
 			if ( !lobby )
 				return refuseSocket( socket )
 			// Create handle from request
-			const handle = createHandleFromRequest ? await createHandleFromRequest( request ) : {}
+			const handle = createHandleFromRequest ? await createHandleFromRequest( request, lobby ) : {}
 			// Invalid handle
 			if ( !handle )
 				return refuseSocket( socket )
