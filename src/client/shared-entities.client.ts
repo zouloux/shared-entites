@@ -34,6 +34,7 @@ export type TClientSharedEntities = ReturnType<typeof createClientSharedEntities
 
 export function createClientSharedEntities ( socket:TClientSocket ) {
   let _isStarted = false
+  let _isStarting = false
 
   // List of all shared entities
   // First map is EntitiesList by appId
@@ -112,8 +113,24 @@ export function createClientSharedEntities ( socket:TClientSocket ) {
     }
   }
 
+  // Recover shared entities when disconnected
+  let _connexionRecover = false
+  function connexionStateChanged ( isConnected:boolean ) {
+    if ( !isConnected ) {
+      _connexionRecover = true
+    }
+    if ( _connexionRecover && isConnected ) {
+      _connexionRecover = false
+      socket.sendPayloadWithReturn(null, '@SE')
+    }
+  }
+
   const api = {
     onUpdated,
+
+    get isStarting () { return _isStarting },
+    get isStarted () { return _isStarted },
+
     getAll () {
       const output: any = {}
       for (const id of _sharedEntitiesByApp.keys()) {
@@ -126,6 +143,7 @@ export function createClientSharedEntities ( socket:TClientSocket ) {
       }
       return output
     },
+
     getValue (appId: number, key: string, deep = true) {
       if (!_sharedEntitiesByApp.has(appId))
         return null
@@ -152,25 +170,47 @@ export function createClientSharedEntities ( socket:TClientSocket ) {
       )
     },
 
-    start() {
-      if (_isStarted)
-        return
-      console.log('sharedEntities // start')
-      _isStarted = true
-      socket.onPayload.add(payloadHandler as any)
-      socket.sendPayloadWithReturn(0, '@SE').then((r) => {
-        if (r.d === 'ok') // fixme
-          console.log('sharedEntities // started')
+    start():Promise<void> {
+      return new Promise((resolve, reject) => {
+        if ( !socket.isConnected || _isStarted || _isStarting )
+          return reject()
+        _isStarting = true
+        // Listen all payloads now
+        socket.onPayload.add(payloadHandler)
+        socket.onConnectionUpdated.add(connexionStateChanged)
+        // Tell server we need all shared entities
+        socket.sendPayloadWithReturn(null, '@SE')
+          .then((r) => {
+            _isStarting = false
+            // Server has sent all entities
+            if (r.d === '@OK') {
+              _isStarted = true
+              resolve()
+            }
+            // Server has sent something else or timeout
+            else {
+              socket.onPayload.remove(payloadHandler)
+              socket.onConnectionUpdated.remove(connexionStateChanged)
+              reject()
+            }
+          })
+          .catch(() => {
+            _isStarting = false
+            reject()
+          })
       })
     },
 
-    stop () {
-      if (!_isStarted)
-        return
-      console.log('sharedEntities // stop')
-      _sharedEntitiesByApp.clear()
-      _isStarted = false
-      socket.onPayload.remove(payloadHandler as any)
+    stop ():Promise<void> {
+      return new Promise((resolve, reject) => {
+        if ( !_isStarted || _isStarting )
+          return reject()
+        _sharedEntitiesByApp.clear()
+        _isStarted = false
+        socket.onPayload.remove(payloadHandler as any)
+        socket.onConnectionUpdated.remove(connexionStateChanged)
+        resolve()
+      })
     },
   }
 

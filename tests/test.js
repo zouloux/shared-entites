@@ -94,7 +94,7 @@ serverSocket.onPayload.add((payload, lobby, handle) => {
 })
 
 for ( let i = 0; i < 10; i++ ) {
-	setTimeout(() => {
+	setTimeout( () => {
 		const clientSocket = createClientSocket({
 			endpoint: `ws://localhost:${port}/ws/${mainLobbyKey}`,
 			logLevel: i === 0 ? 2 : 0,
@@ -110,16 +110,19 @@ for ( let i = 0; i < 10; i++ ) {
 
 		if ( i === 0 ) {
 			clientSocket.onConnectionUpdated.once((isConnected) => {
-				if (!isConnected) return
-				console.log("[client] connected")
+				if (!isConnected)
+					return
+				console.log("[client] starting SE")
 				sharedEntities.start()
+					.then(() => console.log("[client] SE Started") )
+					.catch(() => console.error("[client] SE Error"))
 				sharedEntities.onUpdated.add((appId, key, action) => {
-					console.log(
-						"[client] shared entity updated",
-						sharedEntities.getValue(appId, "players", true)
-					)
+					console.log( "[client] shared entity updated", appId, key, action )
+					if ( appId === 0 && key === "players" ) {
+						const players = sharedEntities.getValue(appId, "players", true)
+						console.log( players );
+					}
 				})
-				// clientSocket.sendPayload(0, "test", { coucou: true })
 			})
 		}
 

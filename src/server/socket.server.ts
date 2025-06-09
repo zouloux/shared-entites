@@ -91,7 +91,7 @@ export function createServerSocket <
 			let answer:any = null
 			if ( payload.t === '@SE' ) {
         lobby.sharedEntities.forEach( sharedEntity => sharedEntity.sendToHandle( handle ) )
-				answer = 'ok'
+				answer = '@OK'
       } else {
 				// Notify payload
 				const answers = onPayload.dispatch( payload, lobby, handle )

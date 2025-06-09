@@ -3,13 +3,13 @@
  * Represents a socket payload from client to server or server to client.
  */
 export interface ISocketPayload <GType extends string = string, GData = any> {
-	// app id
+	/* app id */
   a ?: number
-	// type
+	/* type */
   t ?: GType
-	// uid ( for answers )
+	/* uid ( for answers ) */
   u ?: string
-	// data
+	/* data */
   d ?: GData
 }
 
