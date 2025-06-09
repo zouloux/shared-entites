@@ -30,7 +30,7 @@ export function createClientSocket (options:TOptions) {
   // Reconnection management
   reconnectTimeout ||= 1000
   let _reconnectionTimeout: any
-  let _allowReconnexions = true
+  let _allowReconnexions = false
   // Waiting payload returns
   payloadTimeout ||= 10 * 1000 // 10 seconds
   const _waitingPayloadReturns = new Map<string, (payload:ISocketPayload) => void>()
@@ -73,7 +73,7 @@ export function createClientSocket (options:TOptions) {
         // Already connected or exited
         if (_isConnected)
           return reject()
-        let hasConnected = false
+        let _hasPromised = false
         // Remove reconnect timeout
         clearTimeout(_reconnectionTimeout)
         _reconnectionTimeout = null
@@ -81,16 +81,20 @@ export function createClientSocket (options:TOptions) {
         _webSocket = webSocketClass ? new webSocketClass(endpoint) : new WebSocket(endpoint)
         // We are connected
         _webSocket.addEventListener('open', () => {
+          if ( _hasPromised )
+            return
           if ( logLevel >= 1 )
             console.log('WS :: open')
           _allowReconnexions = true
-          hasConnected = true
+          _hasPromised = true
           _isConnected = true
           api.onConnectionUpdated.dispatch(_isConnected)
           resolve()
         })
         // We receive a payload from server
         _webSocket.addEventListener('message', (event) => {
+          if ( !_hasPromised )
+            return
           if (typeof event.type !== 'string') {
             if ( logLevel >= 1 )
               console.error('WS :: Invalid message type', event)
@@ -133,8 +137,8 @@ export function createClientSocket (options:TOptions) {
           if ( logLevel >= 1 )
             console.error('WS :: error', event)
           // fixme : do we keep this ?
-          if ( !hasConnected )
-            return reject()
+          // if ( !_hasPromised )
+          //   return reject()
         })
         // The connexion has been lost
         _webSocket.addEventListener('close', (event) => {
@@ -142,8 +146,10 @@ export function createClientSocket (options:TOptions) {
             console.log('WS :: close')
           // if ( logLevel >= 2 )
           //   console.log( event );
-          if ( !hasConnected )
+          if ( !_hasPromised ) {
+            _hasPromised = true
             return reject()
+          }
           // Reconnect in a loop
           if ( _allowReconnexions && reconnectTimeout > 0 ) {
             _reconnectionTimeout = setTimeout( () => {
