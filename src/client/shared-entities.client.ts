@@ -119,7 +119,7 @@ export function createClientSharedEntities ( socket:TClientSocket ) {
     if ( !isConnected ) {
       _connexionRecover = true
     }
-    if ( _connexionRecover && isConnected ) {
+    else if ( _connexionRecover && isConnected ) {
       _connexionRecover = false
       socket.sendPayloadWithReturn(null, '@SE')
     }
