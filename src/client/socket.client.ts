@@ -3,7 +3,7 @@ import { Emitter } from "../common/emitter.js";
 import { ISocketPayload } from "../common/index.common.js";
 
 
-interface TOptions {
+export interface TOptions {
   endpoint          : string
   logLevel          ?:TLogLevel
   reconnectTimeout  ?:number
