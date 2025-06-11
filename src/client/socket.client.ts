@@ -126,7 +126,7 @@ export function createClientSocket (options:TOptions) {
           }
           // Check if it's a return
           if ( u && _waitingPayloadReturns.has(u) ) {
-            _waitingPayloadReturns.get(u)(parsedPayload)
+            _waitingPayloadReturns.get(u)(parsedPayload.d)
             return
           }
           // Not a return but a server payload
