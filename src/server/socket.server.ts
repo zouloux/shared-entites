@@ -13,7 +13,8 @@ export interface IWSLike {
 }
 
 export type TServerSocketHandle = {
-	ws:IWSLike
+	ws									:IWSLike
+	hasSharedEntities		:boolean
 }
 
 export type TServerSocketLobby <GHandle extends TServerSocketHandle = TServerSocketHandle> = {
@@ -30,7 +31,7 @@ type TOptions <
 	logLevel          			?:TLogLevel
 	pingInterval						?:number
 	getLobbyFromRequest			: (request:FastifyRequest) => Promise<GLobby>
-	createHandleFromRequest	?:(request:FastifyRequest, lobby:GLobby) => Promise<Omit<GHandle, "ws">|null>
+	createHandleFromRequest	?:(request:FastifyRequest, lobby:GLobby) => Promise<Omit<GHandle, "ws" | "hasSharedEntities">|null>
 	webSocketServerOptions	?:typeof WebSocketServer.prototype.options
 }
 
@@ -68,6 +69,9 @@ export function createServerSocket <
 	function newConnection ( ws:IWSLike, lobby:GLobby, handle:GHandle ) {
 		// Inject socket into handle
 		handle.ws = ws
+		// Do not share entities with this handle until it has asked for it
+		handle.hasSharedEntities = false
+
     // Send pings through websocket to prevent OS to cut the channel
     const pingTimer = setInterval(() => {
       ws.send(`@PING-${generateSimpleUID(serverStartTime)}`)
@@ -91,6 +95,10 @@ export function createServerSocket <
 			let answer:any = null
 			if ( payload.t === '@SE' ) {
         lobby.sharedEntities.forEach( sharedEntity => sharedEntity.sendToHandle( handle ) )
+				handle.hasSharedEntities = true
+				// todo : we could theorically record the index of the shared entities sync object for every handle
+				//        Store something like 100 sync objects max
+				// 				if a handle disconnects, we send the diff, if it's more that 100 we send back all shared entities
 				answer = '@OK'
       } else {
 				// Notify payload

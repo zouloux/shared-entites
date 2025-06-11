@@ -60,6 +60,10 @@ export abstract class AbstractSharedEntity <GType = any> {
 
   abstract sendToHandle ( handle?:TServerSocketHandle )
 
+  protected getHandlesWithSharedEntities () {
+    return this.lobby.handles.filter( h => h.hasSharedEntities )
+  }
+
   dispose () {
     if ( this.lobby && this.lobby.sharedEntities )
       this.lobby.sharedEntities = this.lobby.sharedEntities.filter( e => e !== this )
@@ -104,7 +108,10 @@ export class SharedObject <GType extends object> extends AbstractSharedEntity <G
     }
     if ( this.parentKey )
       payloadData.p = this.parentKey
-    const handles:TServerSocketHandle[] = handle ? [handle] : this.lobby.handles
+    const handles:TServerSocketHandle[] = (
+      handle ? [handle]
+      : this.getHandlesWithSharedEntities()
+    )
     this.serverSocket.sendPayload(handles, this.appId, SharedObject.identifier, payloadData)
   }
 
@@ -222,7 +229,10 @@ export class SharedList <GType> extends AbstractSharedEntity <GType[]> {
       k: this.key,
       v: this._value.map( item => this.serializeItem( item ) ),
     }
-    const handles:TServerSocketHandle[] = handle ? [handle] : this.lobby.handles
+    const handles:TServerSocketHandle[] = (
+      handle ? [handle]
+      : this.getHandlesWithSharedEntities()
+    )
     this.serverSocket.sendPayload(handles, this.appId, SharedList.identifier, payloadData)
   }
 
