@@ -117,7 +117,7 @@ export class SharedObject <GType extends object> extends AbstractSharedEntity <G
 
   dispose () {
     if ( this.serverSocket && this.lobby ) {
-      this.serverSocket.sendPayload(this.lobby.handles, this.appId, SharedObject.identifier, {
+      this.serverSocket.sendPayload(this.getHandlesWithSharedEntities(), this.appId, SharedObject.identifier, {
         a: "D"/*destroy*/,
         k: this.key,
       })
@@ -146,7 +146,7 @@ export class SharedObject <GType extends object> extends AbstractSharedEntity <G
     if ( value === undefined && propName in this._value ) {
       delete this._value[ propName ]
       if ( this.serverSocket && this.lobby ) {
-        this.serverSocket.sendPayload(this.lobby.handles, this.appId, SharedObject.identifier, {
+        this.serverSocket.sendPayload(this.getHandlesWithSharedEntities(), this.appId, SharedObject.identifier, {
           ...payloadData,
           a: "R"/*remove*/,
         })
@@ -156,7 +156,7 @@ export class SharedObject <GType extends object> extends AbstractSharedEntity <G
     else if ( value !== this._value[ propName ] ) {
       this._value[ propName ] = value
       if ( this.serverSocket && this.lobby ) {
-        this.serverSocket.sendPayload(this.lobby.handles, this.appId, SharedObject.identifier, {
+        this.serverSocket.sendPayload(this.getHandlesWithSharedEntities(), this.appId, SharedObject.identifier, {
           ...payloadData,
           a: "M"/*mutate*/,
         })
@@ -238,7 +238,7 @@ export class SharedList <GType> extends AbstractSharedEntity <GType[]> {
 
   dispose () {
     this.clear()
-    this.serverSocket.sendPayload(this.lobby.handles, this.appId, SharedList.identifier, {
+    this.serverSocket.sendPayload(this.getHandlesWithSharedEntities(), this.appId, SharedList.identifier, {
       a: "D"/*destroy*/,
       k: this.key,
     })
@@ -264,7 +264,7 @@ export class SharedList <GType> extends AbstractSharedEntity <GType[]> {
       payloadData.v = this.serializeItem( item )
     else if ( action === "R"/*remove*/ )
       payloadData.n = this._value.indexOf( item )
-    this.serverSocket.sendPayload(this.lobby.handles, this.appId, SharedList.identifier, payloadData )
+    this.serverSocket.sendPayload(this.getHandlesWithSharedEntities(), this.appId, SharedList.identifier, payloadData )
   }
 
   // --------------------------------------------------------------------------- LIST METHODS
