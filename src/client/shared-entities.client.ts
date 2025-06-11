@@ -181,11 +181,11 @@ export function createClientSharedEntities ( socket:TClientSocket ) {
         socket.onPayload.add(payloadHandler)
         socket.onConnectionUpdated.add(connexionStateChanged)
         // Tell server we need all shared entities
-        socket.sendPayloadWithReturn(null, '@SE')
+        socket.sendPayloadWithReturn<string>(null, '@SE')
           .then((r) => {
             _isStarting = false
             // Server has sent all entities
-            if (r.d === '@OK') {
+            if (r === '@OK') {
               _isStarted = true
               resolve()
             }

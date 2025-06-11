@@ -207,7 +207,7 @@ export function createClientSocket (options:TOptions) {
       a: number /* app id */,
       t: GType /* type */,
       d:any /* data */ = null
-    ): Promise<ISocketPayload<GType, GAnswer>> {
+    ): Promise<GAnswer> {
       return new Promise((resolve, reject) => {
         // Not connected
         if (!_isConnected || !_webSocket) {
