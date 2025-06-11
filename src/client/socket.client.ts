@@ -115,7 +115,7 @@ export function createClientSocket (options:TOptions) {
               console.error('WS :: Invalid payload', error, event)
           }
           const { a, t, u } = parsedPayload
-          if ( logLevel >= 1 )
+          if ( logLevel === 1 )
             console.log('WS :: onPayload', a, t)
           if ( logLevel >= 2 )
             console.log('WS <-', event.data)
@@ -210,13 +210,15 @@ export function createClientSocket (options:TOptions) {
     ): Promise<ISocketPayload<GType, GAnswer>> {
       return new Promise((resolve, reject) => {
         // Not connected
-        if (!_isConnected || !_webSocket)
+        if (!_isConnected || !_webSocket) {
+          reject()
           return
+        }
         // Create a unique ID to identify the answer
         const u = generateSimpleUID()
         // Send the payload as JSON
         const payload:ISocketPayload = { a, t, d, u }
-        if ( logLevel >= 1 ) {
+        if ( logLevel === 1 ) {
           console.log(
             'WS :: sendPayloadWithReturn',
             a, t, u,

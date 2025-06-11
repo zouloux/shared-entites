@@ -108,7 +108,7 @@ export function createServerSocket <
 					answer = answers[0]
 			}
 			// Send answer back
-			if ( typeof payload.u === "string" && answer !== undefined ) {
+			if ( typeof payload.u === "string" ) {
 				const { a, t, u } = payload
 				const buffer = JSON.stringify({ a, t, u, d: answer })
 				handle.ws.send( buffer )
