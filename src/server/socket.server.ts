@@ -102,10 +102,15 @@ export function createServerSocket <
 				answer = '@OK'
       } else {
 				// Notify payload
-				const answers = onPayload.dispatch( payload, lobby, handle )
+				// Keep only defined answer
+				const answers = onPayload
+					.dispatch(payload, lobby, handle)
+					.filter( p => p !== undefined )
 				// todo : error on answers length not correct
 				if ( answers.length === 1 )
 					answer = answers[0]
+				else if ( answers.length > 1 && logLevel > 0 )
+					console.log("Multiple payload answers", answers)
 			}
 			// Send answer back
 			if ( typeof payload.u === "string" ) {
