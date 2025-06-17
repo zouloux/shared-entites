@@ -12,7 +12,7 @@ type TValueOrMutator <GType, GKey extends keyof GType, GValue = GType[GKey]> = (
 export type TSharedEntityPayload = ISocketPayload<
   "@SO"/*shared-object*/|"@SL"/*shared-list*/, {
     // Action
-    a  :"C"/*create*/ | "D"/*destroy*/ | "A"/*add*/ | "M"/*mutate*/ | "R"/*remove*/
+    a  :"C"/*create*/ | "D"/*destroy*/ | "A"/*add*/ | "M"/*mutate*/ | "P"/*mutate prop*/ | "R"/*remove*/
     // key
     k  :string
     // Property name
@@ -245,7 +245,7 @@ export class SharedList <GType> extends AbstractSharedEntity <GType[]> {
     super.dispose()
   }
 
-  protected processItem ( action:"A"|"R", item:GType ) {
+  protected processItem ( action:"A"|"R"|"M", item:GType, index?:number ) {
     const payloadData:TSharedEntityPayload['d'] = {
       a: action,
       k: this.key,
@@ -264,6 +264,10 @@ export class SharedList <GType> extends AbstractSharedEntity <GType[]> {
       payloadData.v = this.serializeItem( item )
     else if ( action === "R"/*remove*/ )
       payloadData.n = this._value.indexOf( item )
+    else if ( action === "M"/*mutate*/ ) {
+      payloadData.n = index
+      payloadData.v = this.serializeItem( item )
+    }
     this.serverSocket.sendPayload(this.getHandlesWithSharedEntities(), this.appId, SharedList.identifier, payloadData )
   }
 
@@ -281,6 +285,31 @@ export class SharedList <GType> extends AbstractSharedEntity <GType[]> {
   remove ( item:GType ) {
     this.processItem( "R"/*remove*/, item )
     this._value = this._value.filter( i => i !== item )
+  }
+
+  mutate ( index:number, item:GType ) {
+    this.processItem( "M"/*mutate*/, item, index )
+    this._value.splice( index, 1, item )
+  }
+
+  mutateProp ( item:GType, propName:keyof GType, value:GType[keyof GType] ) {
+    if ( item instanceof SharedObject ) {
+      item.mutate( propName, value )
+      return
+    }
+    const index = this._value.indexOf( item )
+    item[ propName ] = value
+    const payloadData:TSharedEntityPayload['d'] = {
+      a: "P",
+      k: this.key,
+      n: index,
+      p: propName as string,
+      v: value,
+    }
+    this.serverSocket.sendPayload(
+      this.getHandlesWithSharedEntities(),
+      this.appId, SharedList.identifier, payloadData
+    )
   }
 
   clear () {

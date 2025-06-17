@@ -17,6 +17,7 @@ export type TSharedEntityPayload = ISocketPayload<
       | 'D' /*destroy*/
       | 'A' /*add*/
       | 'M' /*mutate*/
+      | 'P' /*mutate prop*/
       | 'R' /*remove*/
     )
     // key
@@ -103,6 +104,10 @@ export function createClientSharedEntities ( socket:TClientSocket ) {
           entity.push(v)
         else if (a === 'R' /*remove*/)
           entity.splice(n, 1)
+        else if (a === 'M' /*mutate*/)
+          entity[n] = v
+        else if (a === 'P' /*mutate prop*/)
+          entity[n][v.n] = v
         else
           return
       } else {
