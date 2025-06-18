@@ -81,7 +81,7 @@ export function createServerSocket <
 		onHandleConnected.dispatch( lobby, handle )
 
     // Listen for handle messages
-    ws.on('message', (rawPayload:string) => {
+    ws.on('message', async (rawPayload:string) => {
       // Decode payload
       let payload:ISocketPayload
       try {
@@ -114,6 +114,8 @@ export function createServerSocket <
 			}
 			// Send answer back
 			if ( typeof payload.u === "string" ) {
+				if ( answer instanceof Promise )
+					await answer
 				const { a, t, u } = payload
 				const buffer = JSON.stringify({ a, t, u, d: answer })
 				handle.ws.send( buffer )
