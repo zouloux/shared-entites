@@ -35,7 +35,7 @@ export type TClientSharedEntities = ReturnType<typeof createClientSharedEntities
 
 export function createClientSharedEntities ( socket:TClientSocket ) {
   let _isStarted = false
-  let _isStarting = false
+  let _isSyncing = false
 
   // List of all shared entities
   // First map is EntitiesList by appId
@@ -47,8 +47,10 @@ export function createClientSharedEntities ( socket:TClientSocket ) {
   const onUpdated = Emitter<[
     number,
     string,
-    'C' /*create*/ | 'D' /*destroy*/ | 'M' /*mutate*/
+    'C' /*create*/ | 'D' /*destroy*/ | 'M' /*mutate*/ | 'P' /*mutate-prop*/
   ]>()
+
+  const onSynced = Emitter<[boolean]>()
 
   function payloadHandler (payload: TSharedEntityPayload) {
     //const { type, app, data } = payload
@@ -125,17 +127,30 @@ export function createClientSharedEntities ( socket:TClientSocket ) {
   function connexionStateChanged ( isConnected:boolean ) {
     if ( !isConnected ) {
       _connexionRecover = true
+      onSynced.dispatch(false)
     }
-    else if ( _connexionRecover && isConnected ) {
+    else if ( _connexionRecover && isConnected && !_isSyncing ) {
+      _isSyncing = true
       _connexionRecover = false
+      _sharedEntitiesByApp.clear()
       socket.sendPayloadWithReturn(null, '@SE')
+        .then(() => {
+          onSynced.dispatch(true)
+          _isSyncing = false
+        })
+        .catch(() => {
+          _isSyncing = false
+          console.error('sharedEntities // unable to recover shared entities')
+          // todo : try to get back all
+        })
     }
   }
 
   const api = {
+    onSynced,
     onUpdated,
 
-    get isStarting () { return _isStarting },
+    get isSyncing () { return _isSyncing },
     get isStarted () { return _isStarted },
 
     getAll () {
@@ -179,19 +194,20 @@ export function createClientSharedEntities ( socket:TClientSocket ) {
 
     start():Promise<void> {
       return new Promise((resolve, reject) => {
-        if ( !socket.isConnected || _isStarted || _isStarting )
+        if ( !socket.isConnected || _isStarted || _isSyncing )
           return reject()
-        _isStarting = true
+        _isSyncing = true
         // Listen all payloads now
         socket.onPayload.add(payloadHandler)
         socket.onConnectionUpdated.add(connexionStateChanged)
         // Tell server we need all shared entities
         socket.sendPayloadWithReturn<string>(null, '@SE')
           .then((r) => {
-            _isStarting = false
+            _isSyncing = false
             // Server has sent all entities
             if (r === '@OK') {
               _isStarted = true
+              onSynced.dispatch(true)
               resolve()
             }
             // Server has sent something else or timeout
@@ -202,7 +218,7 @@ export function createClientSharedEntities ( socket:TClientSocket ) {
             }
           })
           .catch(() => {
-            _isStarting = false
+            _isSyncing = false
             reject()
           })
       })
@@ -210,10 +226,11 @@ export function createClientSharedEntities ( socket:TClientSocket ) {
 
     stop ():Promise<void> {
       return new Promise((resolve, reject) => {
-        if ( !_isStarted || _isStarting )
+        if ( !_isStarted || _isSyncing )
           return reject()
         _sharedEntitiesByApp.clear()
         _isStarted = false
+        onSynced.dispatch(false)
         socket.onPayload.remove(payloadHandler as any)
         socket.onConnectionUpdated.remove(connexionStateChanged)
         resolve()
