@@ -154,6 +154,7 @@ export function createClientSocket (options:TOptions) {
           //   console.log( event );
           let oldIsConnected = _isConnected;
           _isConnected = false
+          api.onConnectionUpdated.dispatch(_isConnected)
           if ( !_hasPromised ) {
             _hasPromised = true
             reject()
