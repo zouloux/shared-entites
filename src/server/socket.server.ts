@@ -52,7 +52,7 @@ export function createServerSocket <
 	logLevel ||= 0
 	// Default ping interval
 	let { pingInterval } = options
-	pingInterval ??= 10 * 1000 // default to 10s
+	pingInterval ??= 15 * 1000 // default to 15s
 	// Initialize the WebSocket server instance
 	const _socketServer = new WebSocketServer({
 		noServer: true,
@@ -74,7 +74,7 @@ export function createServerSocket <
 
     // Send pings through websocket to prevent OS to cut the channel
     const pingTimer = setInterval(() => {
-      ws.send(`@PING-${generateSimpleUID(serverStartTime)}`)
+      ws.send(`@P-${generateSimpleUID(serverStartTime, 4, 4)}`)
     }, pingInterval)
 
 		lobby.handles.push( handle )

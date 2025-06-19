@@ -70,9 +70,14 @@ export function createClientSocket (options:TOptions) {
 
     async connect ():Promise<void> {
       return new Promise((resolve, reject) => {
+        if ( logLevel >= 1 )
+          console.log('WS :: connecting')
         // Already connected or exited
-        if (_isConnected)
+        if (_isConnected) {
+          if ( logLevel >= 1 )
+            console.log('WS :: already connected')
           return reject()
+        }
         let _hasPromised = false
         // Remove reconnect timeout
         clearTimeout(_reconnectionTimeout)
@@ -101,7 +106,8 @@ export function createClientSocket (options:TOptions) {
             return
           }
           // This is a ping
-          if (event.data.startsWith('@PING')) {
+          if (event.data.startsWith('@P-')) {
+            _webSocket.send(event.data)
             if ( logLevel >= 2 )
               console.log(`WS :: ${event.data}`)
             return
@@ -155,8 +161,14 @@ export function createClientSocket (options:TOptions) {
           // Reconnect in a loop
           if ( _allowReconnexions && reconnectTimeout > 0 ) {
             _reconnectionTimeout = setTimeout( () => {
-              if ( _allowReconnexions )
-                api.connect().catch( () => {} );
+              if ( _allowReconnexions ) {
+                if ( logLevel >= 1 )
+                  console.log('WS :: reconnect')
+                api.connect().catch( () => {
+                  if ( logLevel >= 1 )
+                    console.log('WS :: unable to reconnect')
+                });
+              }
             }, reconnectTimeout )
           }
           // Signal connexion state
