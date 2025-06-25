@@ -94,27 +94,42 @@ export function createClientSharedEntities ( socket:TClientSocket ) {
         console.error(`sharedEntities // payload // invalid entity not found ${k} - ${appId}`)
         return
       }
+      // Always recreate entity references
+      // We do this for better handling in react, with a performance tradeoff
+      // FIXME : For better perfs, we should mutate and recreate ref + dispatch only after a microtask
+      let clone
       if (t === '@SO' /*shared-object*/) {
+        clone = {...entity}
         if (a === 'M' /*mutate*/)
-          entity[n] = v
+          clone[n] = v
         else if (a === 'R' /*remove*/)
-          delete entity[n]
-        else
-          return
-      } else if (t === '@SL' /*shared-list*/) {
-        if (a === 'A' /*add*/)
-          entity.push(v)
-        else if (a === 'R' /*remove*/)
-          entity.splice(n, 1)
-        else if (a === 'M' /*mutate*/)
-          entity[n] = v
-        else if (a === 'P' /*mutate prop*/)
-          entity[n][v.n] = v
-        else
-          return
-      } else {
-        return
+          delete clone[n]
+        // Invalid action, no mutation
+        else return
       }
+      else if (t === '@SL' /*shared-list*/) {
+        clone = [...entity]
+        if (a === 'A' /*add*/)
+          clone.push(v)
+        else if (a === 'R' /*remove*/)
+          clone.splice(n, 1)
+        else if (a === 'M' /*mutate*/)
+          clone[n] = v
+        else if (a === 'P' /*mutate prop*/) {
+          // Also clone sub object
+          const subClone = { ...clone[n] }
+          // Set new value on prop
+          subClone[p] = v
+          // Assign back the new reference
+          clone[n] = subClone
+        }
+        // Invalid action, no mutation
+        else return
+      }
+      // Invalid type, no mutation
+      else return
+      // Set back the new entity reference to the map
+      appEntities.set(k, clone)
       // Dispatch change
       onUpdated.dispatch(appId, k, 'M' /*mutate*/)
       // console.log("->", app, k, entity)
