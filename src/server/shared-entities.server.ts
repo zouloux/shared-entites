@@ -292,7 +292,7 @@ export class SharedList <GType> extends AbstractSharedEntity <GType[]> {
     this._value.splice( index, 1, item )
   }
 
-  mutateProp ( item:GType, propName:keyof GType, value:GType[keyof GType] ) {
+  mutateProp <T extends keyof GType> ( item:GType, propName:T, value:GType[T] ) {
     if ( item instanceof SharedObject ) {
       item.mutate( propName, value )
       return
