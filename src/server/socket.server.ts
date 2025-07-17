@@ -145,11 +145,15 @@ export function createServerSocket <
 		}, 200)
 	}
 
+	function closeWithReason (ws:IWSLike, reason:string) {
+		ws.send(`@CE ${reason}`)
+		setTimeout(() => { ws.close() }, 200)
+	}
+
 	function refuseWithMessage ( request:FastifyRequest, socket:stream.Duplex, head:Buffer, reason:string ) {
 		_socketServer.handleUpgrade(request as any, socket, head, (ws:IWSLike) => {
 			// Notify server socket and register all data
-			ws.send(`@CE ${reason}`)
-			setTimeout(() => { ws.close() }, 200)
+			closeWithReason(ws, reason)
 		})
 	}
 
@@ -207,12 +211,12 @@ export function createServerSocket <
 			_lobbies.set( key, lobby )
 			return lobby
 		},
-		closeLobby ( key:string ):boolean {
+		closeLobby ( key:string, reason:string = null ):boolean {
 			const lobby = _lobbies.get( key )
 			if ( !lobby )
 				return false
 			// Disconnect all handles on this lobby
-			lobby.handles.forEach( handle => api.disconnectHandle( handle ) )
+			lobby.handles.forEach( handle => api.disconnectHandle( handle, reason ) )
 			// Remove all shared entities from memory and from database
 			// Do it after apps so we dispose only the remaining entities that were not
 			// dispose in apps
@@ -227,9 +231,12 @@ export function createServerSocket <
 		//
 		onHandleConnected,
 		onHandleDisconnected,
-		disconnectHandle ( handle:GHandle ) {
+		disconnectHandle ( handle:GHandle, reason:string = null ) {
 			// fixme does it remove it from handles list in lobby ?
-			handle.ws.close()
+			if ( reason )
+				closeWithReason(handle.ws, reason)
+			else
+				handle.ws.close()
 		},
 		//
 		onPayload,
