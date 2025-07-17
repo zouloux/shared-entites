@@ -30,8 +30,8 @@ type TOptions <
 	server									: FastifyInstance
 	logLevel          			?:TLogLevel
 	pingInterval						?:number
-	getLobbyFromRequest			: (request:FastifyRequest) => Promise<GLobby>
-	createHandleFromRequest	?:(request:FastifyRequest, lobby:GLobby) => Promise<Omit<GHandle, "ws" | "hasSharedEntities">|null>
+	getLobbyFromRequest			: (request:FastifyRequest) => Promise<GLobby|null|string>
+	createHandleFromRequest	?:(request:FastifyRequest, lobby:GLobby) => Promise<Omit<GHandle, "ws" | "hasSharedEntities">|null|string>
 	webSocketServerOptions	?:typeof WebSocketServer.prototype.options
 }
 
@@ -133,12 +133,24 @@ export function createServerSocket <
     })
 	}
 
-	function refuseSocket (socket:stream.Duplex) {
+	function refuseSocket (socket:stream.Duplex, reason:string = "refused") {
 		// this prevent error in http syntax in node internals ( delay + send bad request )
 		setTimeout(() => {
-			socket.write('HTTP/1.1 400 Bad Request\r\n\r\n');
+			socket.write(
+				`HTTP/1.1 400 Bad Request\r\n` +
+				`X-Rejection-Reason: ${reason}\r\n` +
+				`\r\n`
+			);
 			socket.destroy();
-		}, 100)
+		}, 200)
+	}
+
+	function refuseWithMessage ( request:FastifyRequest, socket:stream.Duplex, head:Buffer, reason:string ) {
+		_socketServer.handleUpgrade(request as any, socket, head, (ws:IWSLike) => {
+			// Notify server socket and register all data
+			ws.send(`@CE ${reason}`)
+			setTimeout(() => { ws.close() }, 200)
+		})
 	}
 
 	// We received a WebSocket connection request
@@ -146,15 +158,17 @@ export function createServerSocket <
 		//
 		try {
 			// Create lobby from request
-			const lobby = await getLobbyFromRequest( request )
+			let lobby = await getLobbyFromRequest( request )
 			// Invalid lobby
-			if ( !lobby )
-				return refuseSocket( socket )
+			const lobbyIsString = typeof lobby === "string"
+			if ( !lobby || lobbyIsString )
+				return refuseWithMessage( request, socket, head, lobbyIsString ? lobby : "unknown" )
 			// Create handle from request
 			const handle = createHandleFromRequest ? await createHandleFromRequest( request, lobby ) : {}
 			// Invalid handle
-			if ( !handle )
-				return refuseSocket( socket )
+			const handleIsString = typeof handle === "string"
+			if ( !handle || handleIsString )
+				return refuseWithMessage( request, socket, head, handleIsString ? handle : "unknown" )
 			// Allow proto upgrade
 			_socketServer.handleUpgrade(request as any, socket, head, (ws:IWSLike) => {
 				// Notify server socket and register all data
@@ -166,7 +180,7 @@ export function createServerSocket <
 				console.log("Error while upgrading socket")
 				console.error( error )
 			}
-			return refuseSocket( socket )
+			return refuseSocket( socket, "error" )
 		}
 	}
 
@@ -198,9 +212,7 @@ export function createServerSocket <
 			if ( !lobby )
 				return false
 			// Disconnect all handles on this lobby
-			lobby.handles.forEach( handle => {
-				api.disconnectHandle( handle )
-			})
+			lobby.handles.forEach( handle => api.disconnectHandle( handle ) )
 			// Remove all shared entities from memory and from database
 			// Do it after apps so we dispose only the remaining entities that were not
 			// dispose in apps

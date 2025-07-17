@@ -34,6 +34,8 @@ export function createClientSocket (options:TOptions) {
   // Waiting payload returns
   payloadTimeout ||= 10 * 1000 // 10 seconds
   const _waitingPayloadReturns = new Map<string, (payload:ISocketPayload) => void>()
+  // Last connexion error
+  let _lastConnexionError = null
 
   // --------------------------------------------------------------------------- PUBLIC API
   const api = {
@@ -66,6 +68,11 @@ export function createClientSocket (options:TOptions) {
      */
     onPayload: Emitter<[ISocketPayload]>(),
 
+    /**
+     * Get last connexion error
+     */
+    get lastConnexionError () { return _lastConnexionError },
+
     // ------------------------------------------------------------------------- CONNECT
 
     async connect ():Promise<void> {
@@ -79,6 +86,8 @@ export function createClientSocket (options:TOptions) {
           return reject()
         }
         let _hasPromised = false
+        // Reset connexion error
+        _lastConnexionError = null
         // Remove reconnect timeout
         clearTimeout(_reconnectionTimeout)
         _reconnectionTimeout = null
@@ -110,6 +119,12 @@ export function createClientSocket (options:TOptions) {
             _webSocket.send(event.data)
             if ( logLevel >= 2 )
               console.log(`WS :: ${event.data}`)
+            return
+          }
+          // This is a connexion error
+          if (event.data.startsWith('@CE')) {
+            _lastConnexionError = event.data.split('@CE ')[1]
+            this.disconnect(_lastConnexionError)
             return
           }
           // Parse it as json
@@ -148,13 +163,15 @@ export function createClientSocket (options:TOptions) {
         })
         // The connexion has been lost
         _webSocket.addEventListener('close', (event) => {
+          // console.log( event.code, event.target, event.target["_req"] );
           if ( logLevel >= 1 )
             console.log('WS :: close')
           // if ( logLevel >= 2 )
           //   console.log( event );
           let oldIsConnected = _isConnected;
           _isConnected = false
-          api.onConnectionUpdated.dispatch(_isConnected)
+          if ( oldIsConnected !== _isConnected  )
+            api.onConnectionUpdated.dispatch(_isConnected)
           if ( !_hasPromised ) {
             _hasPromised = true
             reject()

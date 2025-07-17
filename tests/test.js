@@ -40,6 +40,8 @@ import fastify from "fastify";
 
 let handleId = 0
 
+const delay = (duration) => new Promise(resolve => setTimeout(resolve, duration * 1000))
+
 // Create websocket server
 const port = 3003
 const server = fastify({})
@@ -66,6 +68,8 @@ const serverSocket = createServerSocket({
 		}
 	},
 	async createHandleFromRequest (request) {
+		await delay(1)
+		// return "refused"
 		return {
 			// Create new id
 			id: handleId++,
@@ -76,6 +80,24 @@ const serverSocket = createServerSocket({
 // Create some lobbies
 const mainLobbyKey = "1234"
 const mainLobby = serverSocket.openLobby(mainLobbyKey)
+
+
+// Test server connexion refuse
+// const clientSocket = createClientSocket({
+// 	endpoint: `ws://localhost:${port}/ws/${mainLobbyKey}`,
+// 	logLevel: 2,
+// 	webSocketClass: WebSocket,
+// });
+//
+// clientSocket.onConnectionUpdated.add((isConnected) => {
+// 	console.log(`-> ${isConnected} ${clientSocket.lastConnexionError}`)
+// })
+//
+// clientSocket.connect()
+// 	.then(() => console.log("[client] connected"))
+// 	.catch(() => console.error("[client] cannot connect"))
+//
+
 
 const allPlayers = new SharedList()
 allPlayers.key = "players"
