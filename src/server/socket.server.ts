@@ -18,6 +18,7 @@ export type TServerSocketHandle = {
 }
 
 export type TServerSocketLobby <GHandle extends TServerSocketHandle = TServerSocketHandle> = {
+	opened					:boolean
 	handles					:GHandle[]
 	sharedEntities	:AbstractSharedEntity[]
 }
@@ -204,6 +205,7 @@ export function createServerSocket <
 			if ( lobby )
 				return null
 			lobby = {
+				opened: true,
 				handles: [],
 				sharedEntities: [],
 				...lobbyObject,
@@ -226,6 +228,7 @@ export function createServerSocket <
 				entity.dispose()
 			})
 			_lobbies.delete( key )
+			lobby.opened = false
 			return true
 		},
 		//
