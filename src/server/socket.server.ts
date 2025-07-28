@@ -200,7 +200,7 @@ export function createServerSocket <
 		getLobby ( key:string ):GLobby|null {
 			return _lobbies.get( key )
 		},
-		openLobby ( key:string, lobbyObject?:Omit<GLobby, "handles"|"sharedEntities"> ):GLobby|null {
+		openLobby ( key:string, lobbyObject?:Omit<GLobby, "handles"|"sharedEntities"|"opened"> ):GLobby|null {
 			let lobby = _lobbies.get( key )
 			if ( lobby )
 				return null
