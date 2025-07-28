@@ -217,6 +217,8 @@ export function createServerSocket <
 			const lobby = _lobbies.get( key )
 			if ( !lobby )
 				return false
+			if ( !lobby.opened )
+				return false
 			// Disconnect all handles on this lobby
 			lobby.handles.forEach( handle => api.disconnectHandle( handle, reason ) )
 			// Remove all shared entities from memory and from database
