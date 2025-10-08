@@ -60,14 +60,21 @@ export function createClientSharedEntities ( socket:TClientSocket ) {
     const { a /*action*/, k /*key*/, v /*value*/, n /*name*/, p /*parent*/ } = d
     // --- CREATE SHARED ENTITY
     if (a === 'C' /*create*/) {
+			// Check value
+			if (!d || d.v === null || d.v === undefined) {
+        console.error(`sharedEntities // payload // invalid data value not found ${d?.v} - ${appId}`)
+				return
+			}
       // Create app holder
-      if (!_sharedEntitiesByApp.has(appId)) _sharedEntitiesByApp.set(appId, new Map())
+      if (!_sharedEntitiesByApp.has(appId))
+				_sharedEntitiesByApp.set(appId, new Map())
       // Create entity in app
       const appEntities = _sharedEntitiesByApp.get(appId) as any
       appEntities.set(k, d.v)
       // Dispatch
       onUpdated.dispatch(appId, k, 'C' /*create*/)
-      if (p) onUpdated.dispatch(appId, p, 'C' /*create*/)
+      if (p)
+				onUpdated.dispatch(appId, p, 'C' /*create*/)
     }
     // --- DESTROY SHARED ENTITY
     else if (a === 'D' /*destroy*/) {
@@ -200,10 +207,11 @@ export function createClientSharedEntities ( socket:TClientSocket ) {
             if (typeof item === 'object' && typeof item.__ === 'string')
               return appEntities.get(item.__) ?? null
             // Return the raw value which is not a shared object reference
-            else return item
+            else
+							return item
           })
           // Remove Shared Object references that we could not resolve
-          .filter((item) => item !== null)
+          .filter((item) => item !== null && item !== undefined)
       )
     },
 
